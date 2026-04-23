@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Orbital Insight</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+    rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/pixi.js@7.x/dist/pixi.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      --bg: #02060d;
+      --bg2: #071827;
+      --panel: rgba(7, 21, 37, 0.78);
+      --panel-strong: rgba(7, 18, 30, 0.92);
+      --line: rgba(110, 203, 255, 0.16);
+      --glow: rgba(31, 178, 255, 0.24);
+      --text: #e6f3ff;
+      --muted: #84a5c6;
+      --green: #5ff0b2;
+      --amber: #ffbe55;
+      --red: #ff5f72;
+      --blue: #60c4ff;
+      --cyan: #52f6ff;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      min-height: 100%;
+    }
+
+    body {
+      font-family: "Space Grotesk", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 10% 10%, rgba(0, 198, 255, 0.18), transparent 24%),
+        radial-gradient(circle at 85% 0%, rgba(26, 255, 184, 0.15), transparent 22%),
+        radial-gradient(circle at 50% 100%, rgba(255, 95, 114, 0.12), transparent 30%),
+        linear-gradient(180deg, #02060d 0%, #06111d 42%, #05111b 100%);
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(101, 185, 255, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(101, 185, 255, 0.03) 1px, transparent 1px);
+      background-size: 48px 48px;
+      mask-image: radial-gradient(circle at center, black, transparent 85%);
+      pointer-events: none;
+    }
+
+    .app-shell {
+      padding: 16px;
+      display: grid;
+      gap: 16px;
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: 1.5fr 0.9fr;
+      gap: 16px;
+      align-items: stretch;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      overflow: hidden;
+      box-shadow: 0 18px 80px rgba(0, 0, 0, 0.28), inset 0 0 40px rgba(96, 196, 255, 0.04);
+      backdrop-filter: blur(14px);
+    }
+
+    .panel-header {
+      padding: 16px 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--line);
+      background: linear-gradient(180deg, rgba(96, 196, 255, 0.05), transparent);
+    }
+
+    .panel-header h2,
+    .brand h1 {
+      margin: 0;
+    }
+
+    .brand h1 {
+      font-size: 1.6rem;
+      letter-spacing: 0.02em;
+    }
+
+    .brand p,
+    .meta,
+    .kpi-value,
+    .ticker-track,
+    .detail-grid,
+    .control-row button,
+    .control-chip {
+      font-family: "IBM Plex Mono", monospace;
+    }
+
+    .brand p {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 0.88rem;
+    }
+
+    .mission-bar {
+      display: grid;
+      grid-template-columns: 1.4fr 1fr 1fr 1fr;
+      gap: 14px;
+    }
+
+    .kpi {
+      padding: 16px 18px;
+      background: linear-gradient(180deg, rgba(96, 196, 255, 0.07), rgba(255, 255, 255, 0.02));
+      min-height: 120px;
+    }
+
+    .kpi-label {
+      color: var(--muted);
+      font-size: 0.76rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+    }
+
+    .kpi-value {
+      font-size: 1.9rem;
+      margin-top: 14px;
+    }
+
+    .hero-side {
+      display: grid;
+      gap: 16px;
+    }
+
+    .control-stack {
+      padding: 16px 18px;
+      background: linear-gradient(180deg, rgba(95, 240, 178, 0.08), rgba(255, 255, 255, 0.01));
+    }
+
+    .control-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .control-row button,
+    .control-chip {
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text);
+      border-radius: 999px;
+      padding: 10px 14px;
+      cursor: pointer;
+    }
+
+    .control-row button.active,
+    .control-chip.active {
+      background: rgba(95, 240, 178, 0.18);
+      border-color: rgba(95, 240, 178, 0.35);
+      color: var(--green);
+    }
+
+    .ticker {
+      padding: 0 18px 14px;
+      overflow: hidden;
+    }
+
+    .ticker-track {
+      display: flex;
+      gap: 28px;
+      white-space: nowrap;
+      animation: marquee 22s linear infinite;
+      color: var(--muted);
+    }
+
+    @keyframes marquee {
+      from {
+        transform: translateX(0);
+      }
+
+      to {
+        transform: translateX(-40%);
+      }
+    }
+
+    .dashboard {
+      display: grid;
+      grid-template-columns: 1.55fr 0.95fr;
+      gap: 16px;
+    }
+
+    .stack {
+      display: grid;
+      gap: 16px;
+    }
+
+    #map-panel {
+      position: relative;
+      min-height: 62vh;
+    }
+
+    #map-canvas {
+      width: 100%;
+      height: calc(62vh - 58px);
+      display: block;
+      background:
+        radial-gradient(circle at center, rgba(96, 196, 255, 0.08), transparent 58%),
+        linear-gradient(180deg, rgba(5, 17, 28, 0.85), rgba(5, 13, 24, 0.96));
+    }
+
+    #detail-panel {
+      position: absolute;
+      right: 18px;
+      top: 86px;
+      width: 320px;
+      background: rgba(4, 16, 27, 0.8);
+      border: 1px solid rgba(96, 196, 255, 0.16);
+      border-radius: 22px;
+      padding: 16px;
+      box-shadow: 0 0 40px rgba(0, 0, 0, 0.25);
+    }
+
+    .detail-grid {
+      margin-top: 12px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px 16px;
+      color: var(--muted);
+    }
+
+    #map-legend {
+      position: absolute;
+      left: 18px;
+      bottom: 18px;
+      background: rgba(4, 16, 27, 0.95);
+      border: 1px solid rgba(96, 196, 255, 0.25);
+      border-radius: 18px;
+      padding: 14px 18px;
+      box-shadow: 0 0 40px rgba(0, 0, 0, 0.5);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      pointer-events: none;
+      z-index: 999;
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      transform: translateZ(10px);
+    }
+
+    .legend-title {
+      font-family: "Space Grotesk", sans-serif;
+      font-size: 0.85rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: var(--muted);
+      letter-spacing: 0.08em;
+      margin-bottom: 4px;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .legend-icon-box {
+      width: 32px;
+      height: 24px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+    }
+
+    .icon-debris {
+      width: 3px;
+      height: 3px;
+      border-radius: 50%;
+      background: #6ba7da;
+      opacity: 0.4;
+    }
+
+    .icon-sat-arc {
+      width: 24px;
+      height: 12px;
+      border-top: 1.5px solid rgba(95, 240, 178, 0.45);
+      border-radius: 50% 50% 0 0;
+      position: relative;
+      left: -4px;
+    }
+
+    .icon-sat-dot {
+      position: absolute;
+      right: -3px;
+      bottom: -2px;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 6px var(--green);
+    }
+
+    .icon-threat-circle {
+      width: 14px;
+      height: 14px;
+      border: 1.5px solid var(--red);
+      border-radius: 50%;
+      position: absolute;
+      left: 0;
+    }
+
+    .icon-threat-line {
+      width: 18px;
+      height: 1.5px;
+      background: var(--red);
+      position: absolute;
+      left: 14px;
+      transform: rotate(-15deg);
+      transform-origin: left center;
+    }
+
+    .icon-terminator {
+      width: 1px;
+      height: 20px;
+      background: linear-gradient(180deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+    }
+
+    .legend-text {
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 0.78rem;
+      color: var(--text);
+    }
+
+    .detail-alerts {
+      margin-top: 14px;
+      display: grid;
+      gap: 8px;
+    }
+
+    .alert-chip {
+      padding: 8px 10px;
+      border-radius: 14px;
+      font-size: 0.8rem;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    #bullseye,
+    #gantt {
+      width: 100%;
+      display: block;
+    }
+
+    .feed {
+      padding: 12px 16px 16px;
+      display: grid;
+      gap: 10px;
+      max-height: 270px;
+      overflow: auto;
+    }
+
+    .feed-card {
+      padding: 12px 14px;
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.035);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .heatmap-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(172px, 1fr));
+      gap: 10px;
+      padding: 14px;
+    }
+
+    .fuel-card {
+      border-radius: 18px;
+      padding: 12px;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.02));
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      transform: translateY(0);
+      transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+    }
+
+    .fuel-card:hover {
+      transform: translateY(-3px);
+      border-color: rgba(96, 196, 255, 0.28);
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.18);
+    }
+
+    .fuel-bar {
+      height: 10px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.08);
+      overflow: hidden;
+      margin-top: 12px;
+    }
+
+    .fuel-fill {
+      height: 100%;
+      transition: width 0.8s ease, background 0.8s ease;
+      box-shadow: 0 0 20px currentColor;
+    }
+
+    .status-badge {
+      border-radius: 999px;
+      padding: 3px 8px;
+      font-size: 0.72rem;
+    }
+
+    .chart-wrap {
+      padding: 8px 14px 14px;
+    }
+
+    .tiny {
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+
+    @media (max-width: 1200px) {
+
+      .hero,
+      .dashboard {
+        grid-template-columns: 1fr;
+      }
+
+      .mission-bar {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      #detail-panel {
+        position: static;
+        width: auto;
+        margin: 16px;
+      }
+    }
+
+    @media (max-width: 760px) {
+      .mission-bar {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="app-shell">
+    <section class="hero">
+      <div class="mission-bar">
+        <div class="panel kpi">
+          <div class="brand">
+            <h1>Orbital Insight</h1>
+            <p>Autonomous Constellation Manager for live collision avoidance, burn orchestration, and recovery.</p>
+          </div>
+        </div>
+        <div class="panel kpi">
+          <div class="kpi-label">Simulation Clock</div>
+          <div class="kpi-value" id="timestamp-label">Connecting</div>
+          <div class="tiny" id="speed-label">Live telemetry feed idle</div>
+        </div>
+        <div class="panel kpi">
+          <div class="kpi-label">Risk Index</div>
+          <div class="kpi-value" id="risk-kpi">0 RED</div>
+          <div class="tiny" id="risk-sub">No active threat corridors yet</div>
+        </div>
+        <div class="panel kpi">
+          <div class="kpi-label">Avoidance Actions</div>
+          <div class="kpi-value" id="burn-kpi">0</div>
+          <div class="tiny" id="burn-sub">Scheduled evasions and recoveries</div>
+        </div>
+      </div>
+      <div class="hero-side">
+        <section class="panel control-stack">
+          <div class="kpi-label">Simulation Controls</div>
+          <div class="control-row">
+            <button id="play-toggle" class="active">Auto-step ON</button>
+            <button data-step="120">+120s</button>
+            <button data-step="600">+600s</button>
+            <button data-step="1800">+1800s</button>
+          </div>
+          <div class="control-row">
+            <span class="control-chip active" data-speed="120">x1</span>
+            <span class="control-chip" data-speed="300">x2.5</span>
+            <span class="control-chip" data-speed="900">x7.5</span>
+          </div>
+        </section>
+        <section class="panel">
+          <div class="panel-header">
+            <h2>Mission Feed</h2>
+            <span class="tiny">Risk ticker</span>
+          </div>
+          <div class="ticker">
+            <div class="ticker-track" id="incident-ticker"></div>
+          </div>
+        </section>
+      </div>
+    </section>
+
+    <section class="dashboard">
+      <div class="stack">
+        <section class="panel" id="map-panel">
+          <div class="panel-header">
+            <h2>Threat Map</h2>
+            <span class="tiny">Predicted intercepts, evasions, and recovery arcs</span>
+          </div>
+          <div id="map-canvas"></div>
+          <div id="map-legend">
+            <div class="legend-title">Legend</div>
+            <div class="legend-item">
+              <div class="legend-icon-box">
+                <div class="icon-debris"></div>
+              </div>
+              <div class="legend-text">Space Debris Object</div>
+            </div>
+            <div class="legend-item">
+              <div class="legend-icon-box">
+                <div class="icon-sat-arc">
+                  <div class="icon-sat-dot"></div>
+                </div>
+              </div>
+              <div class="legend-text">Fleet Satellite &amp; Arch</div>
+            </div>
+            <div class="legend-item">
+              <div class="legend-icon-box">
+                <div class="icon-threat-circle"></div>
+                <div class="icon-threat-line"></div>
+              </div>
+              <div class="legend-text">Threat &amp; Approach Vector</div>
+            </div>
+            <div class="legend-item">
+              <div class="legend-icon-box">
+                <div class="icon-terminator"></div>
+              </div>
+              <div class="legend-text">Day/Night Terminator</div>
+            </div>
+          </div>
+          <aside id="detail-panel">
+            <strong id="detail-title">Fleet Overview</strong>
+            <p class="tiny" id="detail-subtitle">Select a satellite to inspect conjunctions, burns, and deviation
+              vectors.</p>
+            <div class="detail-grid" id="detail-grid"></div>
+            <div class="detail-alerts" id="detail-alerts"></div>
+          </aside>
+        </section>
+        <section class="panel">
+          <div class="panel-header">
+            <h2>Maneuver Timeline</h2>
+            <span class="tiny">Upcoming burns and cooldown windows</span>
+          </div>
+          <canvas id="gantt" height="330"></canvas>
+        </section>
+      </div>
+
+      <div class="stack">
+        <section class="panel">
+          <div class="panel-header">
+            <h2>Conjunction Bullseye</h2>
+            <span class="tiny">Time to closest approach</span>
+          </div>
+          <canvas id="bullseye" height="320"></canvas>
+        </section>
+        <section class="panel">
+          <div class="panel-header">
+            <h2>Fleet Fuel Heatmap</h2>
+            <span class="tiny">Animated fuel and delta-v efficiency</span>
+          </div>
+          <div id="heatmap"></div>
+          <div class="chart-wrap">
+            <canvas id="efficiency-chart" height="180"></canvas>
+          </div>
+        </section>
+        <section class="panel">
+          <div class="panel-header">
+            <h2>Incident Feed</h2>
+            <span class="tiny">Latest deviations and conjunctions</span>
+          </div>
+          <div class="feed" id="event-feed"></div>
+        </section>
+      </div>
+    </section>
+  </div>
+  <script type="module" src="/main.js?v=3"></script>
+</body>
+
+</html>
