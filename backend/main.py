@@ -150,7 +150,7 @@ def seed_objects() -> None:
             last_updated=sim_state.current_time,
         )
         sim_state.upsert_object(sat)
-    for index in range(10000):
+    for index in range(1500):
         altitude = max(250.0, rng.gauss(550.0, 80.0))
         inclination = rng.uniform(0.0, 98.0)
         raan = rng.uniform(0.0, 360.0)
